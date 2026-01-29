@@ -1,0 +1,18 @@
+# Copy this file to terraform.tfvars and fill in the values
+# DO NOT commit terraform.tfvars to version control
+
+project_name = "claude-swarm"
+environment  = "dev"
+location     = "eastus2"
+
+max_parallel_agents = 10
+daily_budget_cents  = 5000  # $50
+weekly_budget_cents = 20000 # $200
+
+# Sensitive values - set via environment variables or tfvars
+# anthropic_api_key = "sk-ant-..."
+# github_token      = "ghp_..."
+
+tags = {
+  Team = "platform"
+}

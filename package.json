@@ -1,0 +1,37 @@
+{
+  "name": "claude-swarm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloud-based Claude Code agent orchestration system",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ciaonet/claude-swarm.git"
+  },
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "tf:init": "cd infrastructure/terraform/environments/dev && terraform init",
+    "tf:plan": "cd infrastructure/terraform/environments/dev && terraform plan",
+    "tf:apply": "cd infrastructure/terraform/environments/dev && terraform apply"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.9.0"
+}
