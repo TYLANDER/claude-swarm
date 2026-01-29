@@ -71,6 +71,41 @@ claude-swarm/
 - **Prompt Caching**: 90% cost reduction on repeated context
 - **Auto-Scaling**: Scale-to-zero when idle
 
+## CLI Usage
+
+```bash
+# Submit a task
+swarm submit -p "Fix the authentication bug in auth.ts"
+
+# Submit with options
+swarm submit -p "Add unit tests" --type test --model sonnet --budget 200
+
+# Check task status
+swarm status <task-id>
+
+# Monitor agents
+swarm agents
+
+# View budget
+swarm budget
+
+# Watch real-time updates
+swarm watch
+```
+
+## Documentation
+
+- [Setup Guide](docs/SETUP.md) - Infrastructure and deployment setup
+- [CLI Reference](docs/CLI.md) - CLI commands and usage
+- [Example Tasks](examples/tasks/) - Sample task configurations
+
+## Manual Setup Required
+
+After cloning, you'll need to configure:
+
+1. **Terraform variables** - Copy `infrastructure/terraform/environments/dev/terraform.tfvars.example` to `terraform.tfvars` and add your API keys
+2. **GitHub Secrets** - Add secrets for CI/CD (see [docs/SETUP.md](docs/SETUP.md#github-actions-cicd-setup))
+
 ## Configuration
 
 ### Environment Variables
@@ -81,6 +116,25 @@ claude-swarm/
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription  |
 | `AZURE_RESOURCE_GROUP`  | Resource group name |
 | `GITHUB_TOKEN`          | GitHub access token |
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Build all packages
+npm run build
+
+# Run type checks
+npm run type-check
+
+# Lint code
+npm run lint
+
+# Format code
+npm run format
+```
 
 ## License
 

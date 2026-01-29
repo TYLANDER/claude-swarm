@@ -2,6 +2,7 @@
   "name": "claude-swarm",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Cloud-based Claude Code agent orchestration system",
   "repository": {
     "type": "git",
@@ -14,20 +15,26 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "turbo run test",
     "type-check": "turbo run type-check",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "tf:init": "cd infrastructure/terraform/environments/dev && terraform init",
     "tf:plan": "cd infrastructure/terraform/environments/dev && terraform plan",
-    "tf:apply": "cd infrastructure/terraform/environments/dev && terraform apply"
+    "tf:apply": "cd infrastructure/terraform/environments/dev && terraform apply",
+    "preinstall": "npx only-allow npm"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@types/node": "^22.0.0",
+    "eslint": "^9.17.0",
     "prettier": "^3.4.0",
     "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.18.0"
   },
   "engines": {
     "node": ">=22.0.0",

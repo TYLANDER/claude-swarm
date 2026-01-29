@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+coverage
+.turbo
+*.min.js
+package-lock.json
+.terraform
+*.tfstate*

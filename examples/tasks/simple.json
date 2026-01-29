@@ -1,0 +1,13 @@
+{
+  "type": "code",
+  "prompt": "Add a health check endpoint to the API that returns the server status and uptime",
+  "context": {
+    "branch": "develop",
+    "files": ["src/routes/index.ts"],
+    "dependencies": []
+  },
+  "model": "sonnet",
+  "priority": "normal",
+  "budgetCents": 100,
+  "timeoutMinutes": 30
+}

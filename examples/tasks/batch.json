@@ -1,0 +1,41 @@
+[
+  {
+    "type": "code",
+    "prompt": "Implement the UserService class with methods for CRUD operations on users. Include proper error handling and validation.",
+    "context": {
+      "branch": "feature/user-service",
+      "files": ["src/services/UserService.ts"],
+      "dependencies": []
+    },
+    "model": "sonnet",
+    "priority": "normal",
+    "budgetCents": 200,
+    "timeoutMinutes": 45
+  },
+  {
+    "type": "test",
+    "prompt": "Write comprehensive unit tests for the UserService class. Cover all public methods including edge cases and error scenarios.",
+    "context": {
+      "branch": "feature/user-service",
+      "files": ["src/services/UserService.ts", "src/services/__tests__/UserService.test.ts"],
+      "dependencies": []
+    },
+    "model": "sonnet",
+    "priority": "normal",
+    "budgetCents": 150,
+    "timeoutMinutes": 30
+  },
+  {
+    "type": "doc",
+    "prompt": "Write API documentation for the UserService methods. Include parameter descriptions, return types, and usage examples.",
+    "context": {
+      "branch": "feature/user-service",
+      "files": ["src/services/UserService.ts", "docs/api/UserService.md"],
+      "dependencies": []
+    },
+    "model": "sonnet",
+    "priority": "low",
+    "budgetCents": 50,
+    "timeoutMinutes": 15
+  }
+]

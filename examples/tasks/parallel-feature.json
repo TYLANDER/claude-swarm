@@ -1,0 +1,75 @@
+[
+  {
+    "type": "code",
+    "prompt": "Implement the PaymentService class for processing Stripe payments. Include methods for creating charges, handling refunds, and managing subscriptions.",
+    "context": {
+      "branch": "feature/payments",
+      "files": ["src/services/PaymentService.ts"],
+      "dependencies": []
+    },
+    "model": "sonnet",
+    "priority": "high",
+    "budgetCents": 300,
+    "timeoutMinutes": 60
+  },
+  {
+    "type": "code",
+    "prompt": "Create webhook handlers for Stripe events. Handle payment_intent.succeeded, payment_intent.failed, and customer.subscription.updated events.",
+    "context": {
+      "branch": "feature/payments",
+      "files": ["src/webhooks/stripe.ts"],
+      "dependencies": []
+    },
+    "model": "sonnet",
+    "priority": "high",
+    "budgetCents": 200,
+    "timeoutMinutes": 45
+  },
+  {
+    "type": "code",
+    "prompt": "Add payment-related API routes. Include endpoints for initiating payment, checking payment status, and listing payment history.",
+    "context": {
+      "branch": "feature/payments",
+      "files": ["src/routes/payments.ts"],
+      "dependencies": []
+    },
+    "model": "sonnet",
+    "priority": "normal",
+    "budgetCents": 150,
+    "timeoutMinutes": 30
+  },
+  {
+    "type": "test",
+    "prompt": "Write integration tests for the payment flow. Mock Stripe API calls and test the full payment lifecycle including webhooks.",
+    "context": {
+      "branch": "feature/payments",
+      "files": [
+        "src/services/PaymentService.ts",
+        "src/webhooks/stripe.ts",
+        "tests/integration/payments.test.ts"
+      ],
+      "dependencies": []
+    },
+    "model": "sonnet",
+    "priority": "normal",
+    "budgetCents": 200,
+    "timeoutMinutes": 45
+  },
+  {
+    "type": "security",
+    "prompt": "Review the payment implementation for security vulnerabilities. Check for proper input validation, secure handling of payment tokens, and protection against common attacks.",
+    "context": {
+      "branch": "feature/payments",
+      "files": [
+        "src/services/PaymentService.ts",
+        "src/webhooks/stripe.ts",
+        "src/routes/payments.ts"
+      ],
+      "dependencies": []
+    },
+    "model": "opus",
+    "priority": "high",
+    "budgetCents": 400,
+    "timeoutMinutes": 60
+  }
+]
