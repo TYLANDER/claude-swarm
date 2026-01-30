@@ -44,6 +44,12 @@ resource "azurerm_container_app_job" "agent_worker" {
     replica_completion_count = 1
   }
 
+  registry {
+    server               = var.container_registry_url
+    username             = var.container_registry_username
+    password_secret_name = "acr-password"
+  }
+
   template {
     container {
       name   = "claude-agent"
@@ -98,6 +104,11 @@ resource "azurerm_container_app_job" "agent_worker" {
     value = var.github_token
   }
 
+  secret {
+    name  = "acr-password"
+    value = var.container_registry_password
+  }
+
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.agent.id]
@@ -116,13 +127,19 @@ resource "azurerm_container_app" "orchestrator" {
   container_app_environment_id = azurerm_container_app_environment.agents.id
   revision_mode                = "Single"
 
+  registry {
+    server               = var.container_registry_url
+    username             = var.container_registry_username
+    password_secret_name = "acr-password"
+  }
+
   template {
     min_replicas = 1
     max_replicas = 3
 
     container {
       name   = "orchestrator"
-      image  = "${var.container_registry_url}/claude-swarm-orchestrator:${var.orchestrator_image_tag}"
+      image  = "${var.container_registry_url}/claude-orchestrator:${var.orchestrator_image_tag}"
       cpu    = 1.0
       memory = "2Gi"
 
@@ -170,6 +187,21 @@ resource "azurerm_container_app" "orchestrator" {
         name  = "WEEKLY_BUDGET_CENTS"
         value = tostring(var.weekly_budget_cents)
       }
+
+      env {
+        name  = "AZURE_SUBSCRIPTION_ID"
+        value = var.subscription_id
+      }
+
+      env {
+        name  = "AZURE_RESOURCE_GROUP"
+        value = var.resource_group_name
+      }
+
+      env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.orchestrator.client_id
+      }
     }
   }
 
@@ -181,6 +213,11 @@ resource "azurerm_container_app" "orchestrator" {
   secret {
     name  = "github-token"
     value = var.github_token
+  }
+
+  secret {
+    name  = "acr-password"
+    value = var.container_registry_password
   }
 
   ingress {
@@ -206,7 +243,7 @@ resource "azurerm_container_app" "orchestrator" {
 # ============================================================================
 
 resource "azurerm_servicebus_namespace" "main" {
-  name                = "${var.project_name}-sb"
+  name                = "${var.project_name}-bus"
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = "Standard"

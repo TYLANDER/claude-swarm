@@ -24,11 +24,11 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
+      const error = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
       throw new Error(error.error || `HTTP ${response.status}`);
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
   }
 
   async submitTasks(request: SubmitTaskRequest): Promise<SubmitTaskResponse> {

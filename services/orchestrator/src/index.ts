@@ -3,7 +3,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { createServer } from "http";
 import { ServiceBusClient } from "@azure/service-bus";
 import { ContainerAppsAPIClient } from "@azure/arm-appcontainers";
-import { DefaultAzureCredential } from "@azure/identity";
+import { ManagedIdentityCredential } from "@azure/identity";
 import { v4 as uuidv4 } from "uuid";
 import type {
   AgentTask,
@@ -27,6 +27,7 @@ const config = {
   maxParallelAgents: parseInt(process.env.MAX_PARALLEL_AGENTS || "25"),
   dailyBudgetCents: parseInt(process.env.DAILY_BUDGET_CENTS || "10000"),
   weeklyBudgetCents: parseInt(process.env.WEEKLY_BUDGET_CENTS || "50000"),
+  managedIdentityClientId: process.env.AZURE_CLIENT_ID,
 };
 
 // State
@@ -105,20 +106,22 @@ app.post("/api/tasks", async (req: Request, res: Response) => {
 
 // Get task status
 app.get("/api/tasks/:id", (req: Request, res: Response) => {
-  const task = tasks.get(req.params.id);
+  const taskId = req.params.id as string;
+  const task = tasks.get(taskId);
   if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;
   }
 
-  const result = results.get(req.params.id);
+  const result = results.get(taskId);
   const response: TaskStatusResponse = { task, result };
   res.json(response);
 });
 
 // Cancel task
 app.post("/api/tasks/:id/cancel", async (req: Request, res: Response) => {
-  const task = tasks.get(req.params.id);
+  const taskId = req.params.id as string;
+  const task = tasks.get(taskId);
   if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;
@@ -215,6 +218,7 @@ async function spawnAgent(task: AgentTask) {
           containers: [
             {
               name: "claude-agent",
+              image: `${process.env.CONTAINER_REGISTRY_URL || "claudeswarmdevacr.azurecr.io"}/claude-agent-worker:latest`,
               env: [
                 { name: "AGENT_ID", value: agentId },
                 { name: "TASK_JSON", value: JSON.stringify(task) },
@@ -232,6 +236,41 @@ async function spawnAgent(task: AgentTask) {
     agent.status = "failed";
     task.status = "failed";
     console.error(`Failed to spawn agent ${agentId}:`, error);
+  }
+}
+
+// Process tasks from the queue and spawn agents
+async function processTasks() {
+  // Process all priority queues
+  const queues = ["agent-tasks-high", "agent-tasks", "agent-tasks-low"];
+
+  for (const queueName of queues) {
+    const receiver = serviceBusClient.createReceiver(queueName);
+
+    receiver.subscribe({
+      processMessage: async (message) => {
+        const task = message.body as AgentTask;
+
+        // Update local task state if we have it
+        const existingTask = tasks.get(task.id);
+        if (existingTask) {
+          Object.assign(existingTask, task);
+        } else {
+          tasks.set(task.id, task);
+        }
+
+        // Spawn agent for the task
+        await spawnAgent(tasks.get(task.id)!);
+
+        await receiver.completeMessage(message);
+        console.log(`Task ${task.id} picked up from ${queueName}`);
+      },
+      processError: async (args) => {
+        console.error(`Error processing tasks from ${queueName}:`, args.error);
+      },
+    });
+
+    console.log(`Listening for tasks on ${queueName}`);
   }
 }
 
@@ -306,12 +345,17 @@ async function init() {
   // Initialize Service Bus client
   serviceBusClient = new ServiceBusClient(config.serviceBusConnection);
 
-  // Initialize Container Apps client
-  const credential = new DefaultAzureCredential();
+  // Initialize Container Apps client with managed identity
+  const credential = new ManagedIdentityCredential({
+    clientId: config.managedIdentityClientId,
+  });
   containerAppsClient = new ContainerAppsAPIClient(
     credential,
     config.subscriptionId,
   );
+
+  // Start processing tasks from queues
+  await processTasks();
 
   // Start processing results
   await processResults();

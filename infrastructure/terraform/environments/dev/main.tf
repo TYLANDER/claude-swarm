@@ -1,6 +1,6 @@
 # Development Environment Configuration
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.5.0"
 
   required_providers {
     azurerm = {
@@ -19,6 +19,7 @@ terraform {
 }
 
 provider "azurerm" {
+  skip_provider_registration = true
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
@@ -27,14 +28,11 @@ provider "azurerm" {
 }
 
 # ============================================================================
-# Resource Group
+# Resource Group (using existing)
 # ============================================================================
 
-resource "azurerm_resource_group" "main" {
-  name     = "${var.project_name}-${var.environment}-rg"
-  location = var.location
-
-  tags = local.tags
+data "azurerm_resource_group" "main" {
+  name = "claude-swarm"
 }
 
 # ============================================================================
@@ -43,8 +41,8 @@ resource "azurerm_resource_group" "main" {
 
 resource "azurerm_virtual_network" "main" {
   name                = "${var.project_name}-${var.environment}-vnet"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
   address_space       = ["10.0.0.0/16"]
 
   tags = local.tags
@@ -52,7 +50,7 @@ resource "azurerm_virtual_network" "main" {
 
 resource "azurerm_subnet" "agents" {
   name                 = "agents-subnet"
-  resource_group_name  = azurerm_resource_group.main.name
+  resource_group_name  = data.azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = ["10.0.1.0/24"]
 
@@ -71,8 +69,8 @@ resource "azurerm_subnet" "agents" {
 
 resource "azurerm_storage_account" "main" {
   name                     = "${replace(var.project_name, "-", "")}${var.environment}sa"
-  resource_group_name      = azurerm_resource_group.main.name
-  location                 = azurerm_resource_group.main.location
+  resource_group_name      = data.azurerm_resource_group.main.name
+  location                 = data.azurerm_resource_group.main.location
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
@@ -101,8 +99,8 @@ resource "azurerm_storage_container" "task_results" {
 
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${var.project_name}-${var.environment}-logs"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
   sku                 = "PerGB2018"
   retention_in_days   = 30
 
@@ -115,8 +113,8 @@ resource "azurerm_log_analytics_workspace" "main" {
 
 resource "azurerm_container_registry" "main" {
   name                = "${replace(var.project_name, "-", "")}${var.environment}acr"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
+  resource_group_name = data.azurerm_resource_group.main.name
+  location            = data.azurerm_resource_group.main.location
   sku                 = "Basic"
   admin_enabled       = true
 
@@ -127,16 +125,21 @@ resource "azurerm_container_registry" "main" {
 # Agent Orchestration Module
 # ============================================================================
 
+data "azurerm_subscription" "current" {}
+
 module "agent_orchestration" {
   source = "../../modules/agent-orchestration"
 
   project_name        = var.project_name
   location            = var.location
-  resource_group_name = azurerm_resource_group.main.name
+  resource_group_name = data.azurerm_resource_group.main.name
+  subscription_id     = data.azurerm_subscription.current.subscription_id
 
-  subnet_id                  = azurerm_subnet.agents.id
-  container_registry_url     = azurerm_container_registry.main.login_server
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  subnet_id                   = azurerm_subnet.agents.id
+  container_registry_url      = azurerm_container_registry.main.login_server
+  container_registry_username = azurerm_container_registry.main.admin_username
+  container_registry_password = azurerm_container_registry.main.admin_password
+  log_analytics_workspace_id  = azurerm_log_analytics_workspace.main.id
   storage_account_id         = azurerm_storage_account.main.id
   storage_account_url        = azurerm_storage_account.main.primary_blob_endpoint
 

@@ -15,6 +15,11 @@ variable "resource_group_name" {
   type        = string
 }
 
+variable "subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)
@@ -31,6 +36,17 @@ variable "subnet_id" {
 variable "container_registry_url" {
   description = "URL of the container registry"
   type        = string
+}
+
+variable "container_registry_username" {
+  description = "Container registry admin username"
+  type        = string
+}
+
+variable "container_registry_password" {
+  description = "Container registry admin password"
+  type        = string
+  sensitive   = true
 }
 
 variable "agent_image_tag" {
