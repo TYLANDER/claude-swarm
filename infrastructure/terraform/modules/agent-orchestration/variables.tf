@@ -118,6 +118,12 @@ variable "github_token" {
   sensitive   = true
 }
 
+variable "jwt_secret" {
+  description = "JWT signing secret for API authentication"
+  type        = string
+  sensitive   = true
+}
+
 # External Resources
 variable "log_analytics_workspace_id" {
   description = "Log Analytics workspace ID for monitoring"
@@ -145,4 +151,11 @@ variable "log_level" {
   description = "Log level for agents"
   type        = string
   default     = "info"
+}
+
+# Application Insights
+variable "app_insights_sampling_percentage" {
+  description = "Sampling percentage for Application Insights (0-100)"
+  type        = number
+  default     = 100
 }

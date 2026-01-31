@@ -51,3 +51,9 @@ variable "github_token" {
   type        = string
   sensitive   = true
 }
+
+variable "jwt_secret" {
+  description = "JWT signing secret for API authentication"
+  type        = string
+  sensitive   = true
+}

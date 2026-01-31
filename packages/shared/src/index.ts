@@ -1,5 +1,36 @@
 import type { TokenUsage, ModelType } from '@claude-swarm/types';
 
+// Re-export retry utilities
+export { withRetry, isTransientError, createRetryWrapper, type RetryConfig } from './retry.js';
+
+// Re-export logging utilities
+export {
+  createLogger,
+  withContext,
+  withTask,
+  withRequest,
+  createOrchestratorLogger,
+  createAgentWorkerLogger,
+  serializeError,
+  redact,
+  LogLevel,
+  type LogContext,
+  type RequestContext,
+} from './logger.js';
+
+// Re-export tracing utilities
+export {
+  initTracing,
+  getTracer,
+  startSpan,
+  withSpan,
+  addSpanEvent,
+  setSpanAttributes,
+  getCurrentTraceId,
+  shutdownTracing,
+  type TracingConfig,
+} from './tracing.js';
+
 /**
  * Model pricing in dollars per million tokens
  */

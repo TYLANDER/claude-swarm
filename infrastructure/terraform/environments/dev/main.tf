@@ -149,6 +149,7 @@ module "agent_orchestration" {
 
   anthropic_api_key = var.anthropic_api_key
   github_token      = var.github_token
+  jwt_secret        = var.jwt_secret
 
   tags = local.tags
 }

@@ -1,14 +1,8 @@
 // Task Types
-export type TaskType = "code" | "test" | "review" | "doc" | "security";
-export type TaskPriority = "high" | "normal" | "low";
-export type TaskStatus =
-  | "pending"
-  | "assigned"
-  | "running"
-  | "completed"
-  | "failed"
-  | "cancelled";
-export type ModelType = "opus" | "sonnet";
+export type TaskType = 'code' | 'test' | 'review' | 'doc' | 'security';
+export type TaskPriority = 'high' | 'normal' | 'low';
+export type TaskStatus = 'pending' | 'assigned' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type ModelType = 'opus' | 'sonnet';
 
 export interface TaskContext {
   /** Git branch to work on */
@@ -53,11 +47,11 @@ export interface AgentTask {
 }
 
 // Result Types
-export type ResultStatus = "success" | "partial" | "failed";
+export type ResultStatus = 'success' | 'partial' | 'failed';
 
 export interface FileChange {
   path: string;
-  action: "add" | "modify" | "delete";
+  action: 'add' | 'modify' | 'delete';
   diff?: string;
 }
 
@@ -72,13 +66,13 @@ export interface ReviewComment {
   file: string;
   line: number;
   message: string;
-  severity: "error" | "warning" | "info";
+  severity: 'error' | 'warning' | 'info';
 }
 
 export interface ConflictInfo {
   file: string;
   conflictingAgents: string[];
-  resolution?: "auto" | "manual";
+  resolution?: 'auto' | 'manual';
 }
 
 export interface TokenUsage {
@@ -119,12 +113,12 @@ export interface AgentResult {
 
 // Agent Types
 export type AgentStatus =
-  | "idle"
-  | "initializing"
-  | "running"
-  | "completed"
-  | "failed"
-  | "terminated";
+  | 'idle'
+  | 'initializing'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'terminated';
 
 export interface Agent {
   id: string;
@@ -169,7 +163,7 @@ export interface QueueMessage<T> {
 
 // API Types
 export interface SubmitTaskRequest {
-  tasks: Omit<AgentTask, "id" | "createdAt" | "status" | "assignedAgent">[];
+  tasks: Omit<AgentTask, 'id' | 'createdAt' | 'status' | 'assignedAgent'>[];
 }
 
 export interface SubmitTaskResponse {
@@ -191,4 +185,34 @@ export interface AgentListResponse {
 export interface BudgetResponse {
   status: BudgetStatus;
   projectedDailyCostCents: number;
+}
+
+// Topology Types
+export type TopologyType = 'hub-spoke' | 'hierarchical' | 'mesh';
+
+export interface SubTask {
+  parentTaskId: string;
+  creatorAgentId: string;
+  task: Omit<AgentTask, 'id' | 'createdAt' | 'status'>;
+  localPriority: number;
+}
+
+// Agent Specialization Types
+export type AgentSpecialization =
+  | 'generalist'
+  | 'frontend'
+  | 'backend'
+  | 'infrastructure'
+  | 'testing'
+  | 'security';
+
+// Agent Performance Tracking
+export interface AgentPerformance {
+  agentId: string;
+  taskType: TaskType;
+  successRate: number;
+  avgDurationMs: number;
+  avgCostCents: number;
+  completedCount: number;
+  lastUpdated: string;
 }

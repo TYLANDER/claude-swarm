@@ -91,17 +91,24 @@ resource "azurerm_container_app_job" "agent_worker" {
         name  = "LOG_LEVEL"
         value = var.log_level
       }
+
+      env {
+        name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        value = azurerm_application_insights.main.connection_string
+      }
     }
   }
 
   secret {
-    name  = "anthropic-api-key"
-    value = var.anthropic_api_key
+    name                = "anthropic-api-key"
+    key_vault_secret_id = azurerm_key_vault_secret.anthropic_api_key.id
+    identity            = azurerm_user_assigned_identity.agent.id
   }
 
   secret {
-    name  = "github-token"
-    value = var.github_token
+    name                = "github-token"
+    key_vault_secret_id = azurerm_key_vault_secret.github_token.id
+    identity            = azurerm_user_assigned_identity.agent.id
   }
 
   secret {
@@ -202,17 +209,35 @@ resource "azurerm_container_app" "orchestrator" {
         name  = "AZURE_CLIENT_ID"
         value = azurerm_user_assigned_identity.orchestrator.client_id
       }
+
+      env {
+        name        = "JWT_SECRET"
+        secret_name = "jwt-secret"
+      }
+
+      env {
+        name  = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        value = azurerm_application_insights.main.connection_string
+      }
     }
   }
 
   secret {
-    name  = "anthropic-api-key"
-    value = var.anthropic_api_key
+    name                = "anthropic-api-key"
+    key_vault_secret_id = azurerm_key_vault_secret.anthropic_api_key.id
+    identity            = azurerm_user_assigned_identity.orchestrator.id
   }
 
   secret {
-    name  = "github-token"
-    value = var.github_token
+    name                = "github-token"
+    key_vault_secret_id = azurerm_key_vault_secret.github_token.id
+    identity            = azurerm_user_assigned_identity.orchestrator.id
+  }
+
+  secret {
+    name                = "jwt-secret"
+    key_vault_secret_id = azurerm_key_vault_secret.jwt_secret.id
+    identity            = azurerm_user_assigned_identity.orchestrator.id
   }
 
   secret {

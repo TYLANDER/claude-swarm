@@ -1,38 +1,34 @@
-import {
-  ServiceBusClient,
-  ServiceBusReceivedMessage,
-} from "@azure/service-bus";
-import { BlobServiceClient } from "@azure/storage-blob";
-import type { AgentTask, AgentResult, TokenUsage } from "@claude-swarm/types";
-import { executeTask } from "./executor.js";
-import { setupGitWorktree, cleanupWorktree, commitAndPush } from "./git.js";
+import { ServiceBusClient, ServiceBusReceivedMessage } from '@azure/service-bus';
+import { BlobServiceClient } from '@azure/storage-blob';
+import type { AgentTask, AgentResult, TokenUsage } from '@claude-swarm/types';
+import { withRetry, isTransientError } from '@claude-swarm/shared';
+import { executeTask } from './executor.js';
+import { setupGitWorktree, cleanupWorktree, commitAndPush } from './git.js';
 
 // Configuration from environment
 const config = {
   serviceBusConnection: process.env.AZURE_SERVICE_BUS_CONNECTION!,
-  taskQueueName: process.env.TASK_QUEUE_NAME || "agent-tasks",
-  resultQueueName: process.env.RESULT_QUEUE_NAME || "agent-results",
+  taskQueueName: process.env.TASK_QUEUE_NAME || 'agent-tasks',
+  resultQueueName: process.env.RESULT_QUEUE_NAME || 'agent-results',
   storageAccountUrl: process.env.STORAGE_ACCOUNT_URL!,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY!,
   githubToken: process.env.GITHUB_TOKEN!,
   agentId: process.env.AGENT_ID || `agent-${Date.now()}`,
-  logLevel: process.env.LOG_LEVEL || "info",
+  logLevel: process.env.LOG_LEVEL || 'info',
 };
 
 // Validate required environment variables
 function validateConfig() {
   const required = [
-    "AZURE_SERVICE_BUS_CONNECTION",
-    "STORAGE_ACCOUNT_URL",
-    "ANTHROPIC_API_KEY",
-    "GITHUB_TOKEN",
+    'AZURE_SERVICE_BUS_CONNECTION',
+    'STORAGE_ACCOUNT_URL',
+    'ANTHROPIC_API_KEY',
+    'GITHUB_TOKEN',
   ];
 
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`,
-    );
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
   }
 }
 
@@ -58,11 +54,7 @@ async function processTask(task: AgentTask): Promise<AgentResult> {
 
   try {
     // Setup git worktree
-    worktreePath = await setupGitWorktree(
-      task.context.repository!,
-      task.context.branch,
-      task.id,
-    );
+    worktreePath = await setupGitWorktree(task.context.repository!, task.context.branch, task.id);
 
     // Execute the task using Claude Agent SDK
     const result = await executeTask(task, worktreePath, {
@@ -73,52 +65,46 @@ async function processTask(task: AgentTask): Promise<AgentResult> {
     });
 
     // Commit and push changes
-    const resultCommit = await commitAndPush(
-      worktreePath,
-      task.id,
-      config.agentId,
-    );
+    const resultCommit = await commitAndPush(worktreePath, task.id, config.agentId);
 
     const durationMs = Date.now() - startTime;
 
     return {
       taskId: task.id,
       agentId: config.agentId,
-      status: "success",
+      status: 'success',
       outputs: result.outputs,
       tokensUsed: result.tokensUsed,
       durationMs,
       costCents: calculateCost(result.tokensUsed, task.model),
-      baseCommit: task.context.baseCommit || "unknown",
+      baseCommit: task.context.baseCommit || 'unknown',
       resultCommit,
     };
   } catch (error) {
     const durationMs = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    console.error(
-      `[${config.agentId}] Task ${task.id} failed: ${errorMessage}`,
-    );
+    console.error(`[${config.agentId}] Task ${task.id} failed: ${errorMessage}`);
 
     return {
       taskId: task.id,
       agentId: config.agentId,
-      status: "failed",
+      status: 'failed',
       outputs: {
         filesChanged: [],
       },
       tokensUsed: { input: 0, output: 0, cached: 0 },
       durationMs,
       costCents: 0,
-      baseCommit: task.context.baseCommit || "unknown",
-      resultCommit: "",
+      baseCommit: task.context.baseCommit || 'unknown',
+      resultCommit: '',
       error: errorMessage,
     };
   } finally {
     // Cleanup worktree
     if (worktreePath) {
       await cleanupWorktree(worktreePath).catch((err) =>
-        console.warn(`[${config.agentId}] Failed to cleanup worktree: ${err}`),
+        console.warn(`[${config.agentId}] Failed to cleanup worktree: ${err}`)
       );
     }
   }
@@ -127,7 +113,7 @@ async function processTask(task: AgentTask): Promise<AgentResult> {
 // Calculate cost based on token usage and model
 function calculateCost(tokens: TokenUsage, model: string): number {
   const pricing =
-    model === "opus"
+    model === 'opus'
       ? { input: 5, output: 25, cached: 0.5 } // per MTok in dollars
       : { input: 3, output: 15, cached: 0.3 }; // Sonnet pricing
 
@@ -138,35 +124,62 @@ function calculateCost(tokens: TokenUsage, model: string): number {
   return Math.round((inputCost + outputCost + cachedCost) * 100); // Convert to cents
 }
 
-// Send result to results queue
+// Send result to results queue with retry
 async function sendResult(result: AgentResult) {
-  const sender = serviceBusClient.createSender(config.resultQueueName);
-  try {
-    await sender.sendMessages({
-      body: result,
-      contentType: "application/json",
-    });
-    console.log(`[${config.agentId}] Result sent for task ${result.taskId}`);
-  } finally {
-    await sender.close();
-  }
+  await withRetry(
+    async () => {
+      const sender = serviceBusClient.createSender(config.resultQueueName);
+      try {
+        await sender.sendMessages({
+          body: result,
+          contentType: 'application/json',
+        });
+        console.log(`[${config.agentId}] Result sent for task ${result.taskId}`);
+      } finally {
+        await sender.close();
+      }
+    },
+    {
+      maxRetries: 3,
+      baseDelayMs: 1000,
+      maxDelayMs: 10000,
+      retryableErrors: isTransientError,
+      onRetry: (attempt, error) => {
+        console.warn(
+          `[${config.agentId}] Retry ${attempt} sending result: ${error instanceof Error ? error.message : error}`
+        );
+      },
+    }
+  );
 }
 
-// Save result to blob storage
+// Save result to blob storage with retry
 async function saveResultToStorage(result: AgentResult) {
-  const containerClient = blobServiceClient.getContainerClient("task-results");
-  const blobName = `${result.taskId}/${result.agentId}/result.json`;
-  const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+  await withRetry(
+    async () => {
+      const containerClient = blobServiceClient.getContainerClient('task-results');
+      const blobName = `${result.taskId}/${result.agentId}/result.json`;
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
-  await blockBlobClient.upload(
-    JSON.stringify(result, null, 2),
-    JSON.stringify(result).length,
-    {
-      blobHTTPHeaders: { blobContentType: "application/json" },
+      const content = JSON.stringify(result, null, 2);
+      await blockBlobClient.upload(content, Buffer.byteLength(content), {
+        blobHTTPHeaders: { blobContentType: 'application/json' },
+      });
+
+      console.log(`[${config.agentId}] Result saved to storage: ${blobName}`);
     },
+    {
+      maxRetries: 3,
+      baseDelayMs: 1000,
+      maxDelayMs: 10000,
+      retryableErrors: isTransientError,
+      onRetry: (attempt, error) => {
+        console.warn(
+          `[${config.agentId}] Retry ${attempt} saving to storage: ${error instanceof Error ? error.message : error}`
+        );
+      },
+    }
   );
-
-  console.log(`[${config.agentId}] Result saved to storage: ${blobName}`);
 }
 
 // Main entry point
@@ -181,13 +194,11 @@ async function main() {
     await sendResult(result);
     await saveResultToStorage(result);
     console.log(`[${config.agentId}] Task completed, exiting`);
-    process.exit(result.status === "success" ? 0 : 1);
+    process.exit(result.status === 'success' ? 0 : 1);
   }
 
   // Otherwise, listen to queue (for testing/dev)
-  console.log(
-    `[${config.agentId}] Listening for tasks on queue: ${config.taskQueueName}`,
-  );
+  console.log(`[${config.agentId}] Listening for tasks on queue: ${config.taskQueueName}`);
 
   const receiver = serviceBusClient.createReceiver(config.taskQueueName);
 
@@ -205,7 +216,7 @@ async function main() {
   });
 
   // Handle shutdown
-  process.on("SIGTERM", async () => {
+  process.on('SIGTERM', async () => {
     console.log(`[${config.agentId}] Shutting down...`);
     await receiver.close();
     await serviceBusClient.close();
@@ -214,6 +225,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Fatal error:", err);
+  console.error('Fatal error:', err);
   process.exit(1);
 });

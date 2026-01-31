@@ -15,6 +15,7 @@
   "dependencies": {
     "@azure/service-bus": "^7.9.0",
     "@azure/storage-blob": "^12.17.0",
+    "@claude-swarm/shared": "*",
     "@claude-swarm/types": "*",
     "simple-git": "^3.22.0",
     "zod": "^3.23.0"
