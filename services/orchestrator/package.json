@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
+    "dev:local": "tsx watch src/local.ts",
     "start": "node dist/index.js",
+    "start:local": "node dist/local.js",
     "clean": "rm -rf dist",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
