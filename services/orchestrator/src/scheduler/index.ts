@@ -1,11 +1,13 @@
 import type { AgentTask } from "@claude-swarm/types";
 import type { StateStore } from "../store/types.js";
 import { DependencyGraph } from "./dependencyGraph.js";
+import { TaskScheduler as SmartScheduler } from "./taskScheduler.js";
 
-export { DependencyGraph };
+export { DependencyGraph, SmartScheduler };
 
 /**
- * Task scheduler that handles dependency-aware task queueing
+ * Basic task scheduler that handles dependency-aware task queueing
+ * For smart agent assignment, use SmartScheduler instead
  */
 export class TaskScheduler {
   private store: StateStore;
