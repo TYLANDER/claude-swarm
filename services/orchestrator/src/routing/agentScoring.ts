@@ -103,7 +103,7 @@ export class AgentScoring {
   /**
    * Calculate a composite score for agent suitability (higher is better)
    */
-  calculateScore(metrics: AgentPerformance, task: AgentTask): number {
+  calculateScore(metrics: AgentPerformance, _task: AgentTask): number {
     // Weights for different factors
     const weights = {
       successRate: 0.5, // Most important
@@ -183,7 +183,7 @@ export class AgentScoring {
     const now = Date.now();
     const decayFactor = 0.95; // Decay by 5%
 
-    for (const [key, metrics] of this.metrics) {
+    for (const [, metrics] of this.metrics) {
       const lastUpdated = new Date(metrics.lastUpdated).getTime();
       if (now - lastUpdated > inactiveThresholdMs) {
         // Decay towards neutral

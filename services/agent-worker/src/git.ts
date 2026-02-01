@@ -1,7 +1,7 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 import { mkdir, rm } from 'fs/promises';
 import { join } from 'path';
-import { detectConflicts, autoResolveConflicts } from './conflict.js';
+import { detectConflicts } from './conflict.js';
 import type { ConflictInfo } from '@claude-swarm/types';
 
 const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT || '/workspace';

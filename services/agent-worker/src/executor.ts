@@ -178,7 +178,7 @@ function runClaudeCli(
  * Get list of changed files from git
  */
 async function getGitChanges(workingDir: string): Promise<FileChange[]> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     const proc = spawn('git', ['status', '--porcelain'], { cwd: workingDir });
 
     let stdout = '';

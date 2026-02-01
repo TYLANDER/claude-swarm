@@ -54,13 +54,14 @@ export async function watchCommand(): Promise<void> {
           );
           break;
 
-        case 'task_completed':
+        case 'task_completed': {
           const statusIcon = event.status === 'success' ? chalk.green('✓') : chalk.red('✗');
           const cost = event.costCents ? `($${(event.costCents / 100).toFixed(2)})` : '';
           console.log(
             `${chalk.dim(timestamp)} ${statusIcon} Task ${chalk.cyan(event.taskId?.slice(0, 8))} ${event.status} ${chalk.yellow(cost)}`
           );
           break;
+        }
 
         case 'agent_spawned':
           console.log(

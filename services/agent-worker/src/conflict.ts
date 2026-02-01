@@ -1,4 +1,4 @@
-import simpleGit, { SimpleGit, MergeResult } from "simple-git";
+import simpleGit, { SimpleGit } from "simple-git";
 import type { ConflictInfo } from "@claude-swarm/types";
 
 /**
@@ -25,18 +25,18 @@ export async function detectConflicts(
     // Fetch latest from remote
     await git.fetch(["origin", targetBranch]);
 
-    // Get current branch
+    // Get current branch (used for logging context)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const currentBranch = await git.revparse(["--abbrev-ref", "HEAD"]);
 
     // Try a dry-run merge
-    let mergeResult: MergeResult;
     try {
-      mergeResult = await git.merge([
+      await git.merge([
         `origin/${targetBranch}`,
         "--no-commit",
         "--no-ff",
       ]);
-    } catch (error) {
+    } catch {
       // Merge failed - conflicts detected
       const conflicts = await parseConflicts(git, agentId);
 
@@ -180,6 +180,7 @@ export async function ensureBranchUpToDate(
 
   await git.fetch(["origin"]);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
   const local = await git.revparse(["HEAD"]);
   const remote = await git.revparse([`origin/${targetBranch}`]).catch(() => null);

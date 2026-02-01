@@ -82,7 +82,8 @@ export class DependencyGraph {
           if (await dfs(dep)) return true;
         } else if (recursionStack.has(dep)) {
           // Found cycle - extract it from path
-          const cycleStart = path.indexOf(dep);
+          // Cycle start index available for debugging if needed
+          void path.indexOf(dep);
           path.push(dep); // Close the cycle
           return true;
         }

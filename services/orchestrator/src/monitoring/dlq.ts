@@ -1,4 +1,4 @@
-import { ServiceBusClient, ServiceBusReceiver } from "@azure/service-bus";
+import { ServiceBusClient } from "@azure/service-bus";
 import type { Logger } from "pino";
 
 /**

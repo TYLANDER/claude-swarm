@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import type { WebSocket } from "ws";
 import type { IncomingMessage } from "http";
 
 export interface JwtPayload {
@@ -11,6 +10,7 @@ export interface JwtPayload {
 }
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: JwtPayload;

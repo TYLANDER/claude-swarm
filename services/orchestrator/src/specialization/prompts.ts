@@ -1,4 +1,4 @@
-import type { AgentSpecialization, SpecializationDef } from "./registry.js";
+import type { AgentSpecialization } from "./registry.js";
 import { SPECIALIZATIONS } from "./registry.js";
 
 /**
@@ -94,7 +94,8 @@ export function buildAgentPrompt(
     dependencies?: string[];
   },
 ): string {
-  const spec = SPECIALIZATIONS[specialization];
+  // Spec available for future use with context building
+  void SPECIALIZATIONS[specialization];
   const systemPrompt = SYSTEM_PROMPTS[specialization];
 
   let fullPrompt = `${systemPrompt}\n\n`;
