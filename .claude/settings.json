@@ -1,0 +1,48 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Reminder: Run tests before committing. Use conventional commits. Current project: claude-swarm (multi-agent orchestration).'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(cat | node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.tool_input?.file_path||'')\"); if [[ \"$FILE\" == *.ts ]] || [[ \"$FILE\" == *.tsx ]]; then npx prettier --write \"$FILE\" 2>/dev/null || true; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); CMD=$(echo \"$INPUT\" | node -e \"const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.tool_input?.command||'')\"); if echo \"$CMD\" | grep -qE '^git commit'; then if [ ! -f /tmp/claude-precommit-pass ]; then echo 'Run npm run lint && npm run type-check && npm run test first, then touch /tmp/claude-precommit-pass' >&2; exit 2; fi; rm -f /tmp/claude-precommit-pass; fi; exit 0"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "notify-send 'Claude Code' 'Needs your attention' 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
