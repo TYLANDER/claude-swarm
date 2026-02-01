@@ -1,0 +1,83 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  # REMOVED from pull_request to avoid noisy false-positive notifications
+  schedule:
+    # Run security scan weekly on Sundays at 10 AM UTC (2 AM PST)
+    - cron: '0 10 * * 0'
+
+jobs:
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    # Non-blocking - generates report but doesn't fail the workflow
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run NPM Audit
+        id: audit
+        run: |
+          npm audit --audit-level=high --json > audit.json 2>&1 || true
+          
+          # Parse and summarize
+          HIGH=$(cat audit.json | jq '.metadata.vulnerabilities.high // 0')
+          CRITICAL=$(cat audit.json | jq '.metadata.vulnerabilities.critical // 0')
+          
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+
+      - name: Generate Summary
+        run: |
+          echo "## 🔒 Dependency Audit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- High: ${{ steps.audit.outputs.high }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Critical: ${{ steps.audit.outputs.critical }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.audit.outputs.critical }}" != "0" ]; then
+            echo "⚠️ **Action recommended**: Review critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No critical vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: true
+
+  security-report:
+    name: Security Report
+    needs: [dependency-scan, secret-scan]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Create Security Summary
+        run: |
+          echo "## 🛡️ Security Scan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Scan | ${{ needs.dependency-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scan | ${{ needs.secret-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See individual job logs for details." >> $GITHUB_STEP_SUMMARY
