@@ -7,6 +7,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.85"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5"
+    }
   }
 
   # Uncomment after bootstrap
@@ -33,6 +37,15 @@ provider "azurerm" {
 
 data "azurerm_resource_group" "main" {
   name = "claude-swarm"
+}
+
+# Random suffix for globally unique names
+resource "random_string" "suffix" {
+  length  = 6
+  lower   = true
+  upper   = false
+  numeric = true
+  special = false
 }
 
 # ============================================================================
@@ -68,7 +81,7 @@ resource "azurerm_subnet" "agents" {
 # ============================================================================
 
 resource "azurerm_storage_account" "main" {
-  name                     = "${replace(var.project_name, "-", "")}${var.environment}sa"
+  name                     = "${replace(var.project_name, "-", "")}${var.environment}${random_string.suffix.result}"
   resource_group_name      = data.azurerm_resource_group.main.name
   location                 = data.azurerm_resource_group.main.location
   account_tier             = "Standard"
@@ -112,7 +125,7 @@ resource "azurerm_log_analytics_workspace" "main" {
 # ============================================================================
 
 resource "azurerm_container_registry" "main" {
-  name                = "${replace(var.project_name, "-", "")}${var.environment}acr"
+  name                = "${replace(var.project_name, "-", "")}${var.environment}${random_string.suffix.result}"
   resource_group_name = data.azurerm_resource_group.main.name
   location            = data.azurerm_resource_group.main.location
   sku                 = "Basic"
@@ -131,6 +144,7 @@ module "agent_orchestration" {
   source = "../../modules/agent-orchestration"
 
   project_name        = var.project_name
+  name_suffix         = random_string.suffix.result
   location            = var.location
   resource_group_name = data.azurerm_resource_group.main.name
   subscription_id     = data.azurerm_subscription.current.subscription_id

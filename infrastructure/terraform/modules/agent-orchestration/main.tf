@@ -211,6 +211,16 @@ resource "azurerm_container_app" "orchestrator" {
       }
 
       env {
+        name  = "CONTAINER_APPS_ENV"
+        value = azurerm_container_app_environment.agents.name
+      }
+
+      env {
+        name  = "CONTAINER_IMAGE"
+        value = "${var.container_registry_url}/claude-agent-worker:${var.agent_image_tag}"
+      }
+
+      env {
         name        = "JWT_SECRET"
         secret_name = "jwt-secret"
       }
@@ -268,7 +278,7 @@ resource "azurerm_container_app" "orchestrator" {
 # ============================================================================
 
 resource "azurerm_servicebus_namespace" "main" {
-  name                = "${var.project_name}-bus"
+  name                = "${var.project_name}-bus-${var.name_suffix}"
   location            = var.location
   resource_group_name = var.resource_group_name
   sku                 = "Standard"

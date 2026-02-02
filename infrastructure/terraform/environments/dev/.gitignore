@@ -1,0 +1,4 @@
+
+# Terraform secrets
+infrastructure/terraform/environments/dev/terraform.tfvars
+tfplan

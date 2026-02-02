@@ -2,24 +2,45 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Install git and Claude Code CLI
-RUN apk add --no-cache git bash curl && \
-    npm install -g @anthropic-ai/claude-code
+# Install system dependencies (git for worktrees, bash required by Claude Code)
+RUN apk add --no-cache git bash
 
-# Copy the built service
-COPY services/agent-worker/package*.json ./
-COPY services/agent-worker/dist ./dist
+# Install Claude Code CLI globally BEFORE switching to non-root user
+RUN npm install -g @anthropic-ai/claude-code@latest
 
-# Copy shared types
-COPY packages/types/dist ./node_modules/@claude-swarm/types/dist
-COPY packages/types/package.json ./node_modules/@claude-swarm/types/
+# Copy package files for workspace installation
+COPY package*.json ./
+COPY packages/types/package*.json ./packages/types/
+COPY packages/shared/package*.json ./packages/shared/
+COPY services/agent-worker/package*.json ./services/agent-worker/
 
-# Install production dependencies
-RUN npm install --production --ignore-scripts
+# Install dependencies
+RUN npm ci --workspace=@claude-swarm/agent-worker
 
-# Run as non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-USER nodejs
+# Copy source code
+COPY packages/types/ ./packages/types/
+COPY packages/shared/ ./packages/shared/
+COPY services/agent-worker/ ./services/agent-worker/
 
-CMD ["node", "dist/index.js"]
+# Build TypeScript
+RUN npm run build --workspace=@claude-swarm/types && \
+    npm run build --workspace=@claude-swarm/shared && \
+    npm run build --workspace=@claude-swarm/agent-worker
+
+# Create non-root user WITH home directory (required for Claude config)
+RUN adduser -D -h /home/agent agent
+
+# Create workspace directory for git worktrees
+RUN mkdir -p /workspace && chown -R agent:agent /workspace
+
+# Create Claude config directory (for session state if needed)
+RUN mkdir -p /home/agent/.claude && chown -R agent:agent /home/agent/.claude
+
+# Set environment variables
+ENV HOME=/home/agent
+ENV WORKSPACE_ROOT=/workspace
+
+# Switch to non-root user
+USER agent
+
+CMD ["node", "services/agent-worker/dist/index.js"]

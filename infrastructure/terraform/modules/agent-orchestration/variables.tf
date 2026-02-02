@@ -4,6 +4,12 @@ variable "project_name" {
   default     = "claude-swarm"
 }
 
+variable "name_suffix" {
+  description = "Random suffix for globally unique names"
+  type        = string
+  default     = ""
+}
+
 variable "location" {
   description = "Azure region for resources"
   type        = string

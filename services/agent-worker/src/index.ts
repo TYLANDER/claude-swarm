@@ -7,24 +7,27 @@ import { setupGitWorktree, cleanupWorktree, commitAndPush } from './git.js';
 
 // Configuration from environment
 const config = {
-  serviceBusConnection: process.env.AZURE_SERVICE_BUS_CONNECTION!,
+  serviceBusConnection: process.env.AZURE_SERVICE_BUS_CONNECTION,
   taskQueueName: process.env.TASK_QUEUE_NAME || 'agent-tasks',
   resultQueueName: process.env.RESULT_QUEUE_NAME || 'agent-results',
-  storageAccountUrl: process.env.STORAGE_ACCOUNT_URL!,
+  storageAccountUrl: process.env.STORAGE_ACCOUNT_URL,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY!,
-  githubToken: process.env.GITHUB_TOKEN!,
+  githubToken: process.env.GITHUB_TOKEN,
   agentId: process.env.AGENT_ID || `agent-${Date.now()}`,
   logLevel: process.env.LOG_LEVEL || 'info',
+  taskJson: process.env.TASK_JSON,
 };
 
-// Validate required environment variables
+// Validate required environment variables (varies by mode)
 function validateConfig() {
-  const required = [
-    'AZURE_SERVICE_BUS_CONNECTION',
-    'STORAGE_ACCOUNT_URL',
-    'ANTHROPIC_API_KEY',
-    'GITHUB_TOKEN',
-  ];
+  // ANTHROPIC_API_KEY is always required
+  const required = ['ANTHROPIC_API_KEY'];
+
+  // In TASK_JSON mode (single task execution), Service Bus and Storage are optional
+  if (!config.taskJson) {
+    // Queue mode requires Service Bus
+    required.push('AZURE_SERVICE_BUS_CONNECTION', 'STORAGE_ACCOUNT_URL', 'GITHUB_TOKEN');
+  }
 
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length > 0) {
@@ -32,40 +35,57 @@ function validateConfig() {
   }
 }
 
-// Initialize clients
-let serviceBusClient: ServiceBusClient;
-let blobServiceClient: BlobServiceClient;
+// Initialize clients (optional based on mode)
+let serviceBusClient: ServiceBusClient | null = null;
+let blobServiceClient: BlobServiceClient | null = null;
 
 async function init() {
   validateConfig();
 
-  serviceBusClient = new ServiceBusClient(config.serviceBusConnection);
-  blobServiceClient = new BlobServiceClient(config.storageAccountUrl);
+  // Only initialize Service Bus if connection string is provided
+  if (config.serviceBusConnection) {
+    serviceBusClient = new ServiceBusClient(config.serviceBusConnection);
+  }
 
-  console.log(`[${config.agentId}] Agent worker initialized`);
+  // Only initialize blob storage if URL is provided
+  if (config.storageAccountUrl) {
+    blobServiceClient = new BlobServiceClient(config.storageAccountUrl);
+  }
+
+  console.log(
+    `[${config.agentId}] Agent worker initialized (mode: ${config.taskJson ? 'single-task' : 'queue'})`
+  );
 }
 
 // Process a single task
 async function processTask(task: AgentTask): Promise<AgentResult> {
   const startTime = Date.now();
   let worktreePath: string | null = null;
+  const hasRepository = task.context.repository && task.context.repository.length > 0;
 
-  console.log(`[${config.agentId}] Processing task ${task.id} (${task.type})`);
+  console.log(
+    `[${config.agentId}] Processing task ${task.id} (${task.type})${hasRepository ? ` with repo: ${task.context.repository}` : ' (no repository)'}`
+  );
 
   try {
-    // Setup git worktree
-    worktreePath = await setupGitWorktree(task.context.repository!, task.context.branch, task.id);
+    // Setup git worktree only if repository is specified
+    if (hasRepository) {
+      worktreePath = await setupGitWorktree(task.context.repository!, task.context.branch, task.id);
+    }
 
     // Execute the task using Claude Agent SDK
-    const result = await executeTask(task, worktreePath, {
+    const result = await executeTask(task, worktreePath || '/tmp', {
       anthropicApiKey: config.anthropicApiKey,
       model: task.model,
       maxTokens: task.maxTokens,
       budgetCents: task.budgetCents,
     });
 
-    // Commit and push changes
-    const resultCommit = await commitAndPush(worktreePath, task.id, config.agentId);
+    // Commit and push changes only if we have a worktree
+    let resultCommit = '';
+    if (hasRepository && worktreePath) {
+      resultCommit = await commitAndPush(worktreePath, task.id, config.agentId);
+    }
 
     const durationMs = Date.now() - startTime;
 
@@ -124,11 +144,16 @@ function calculateCost(tokens: TokenUsage, model: string): number {
   return Math.round((inputCost + outputCost + cachedCost) * 100); // Convert to cents
 }
 
-// Send result to results queue with retry
+// Send result to results queue with retry (skipped if Service Bus not configured)
 async function sendResult(result: AgentResult) {
+  if (!serviceBusClient) {
+    console.log(`[${config.agentId}] Service Bus not configured, skipping result send`);
+    return;
+  }
+
   await withRetry(
     async () => {
-      const sender = serviceBusClient.createSender(config.resultQueueName);
+      const sender = serviceBusClient!.createSender(config.resultQueueName);
       try {
         await sender.sendMessages({
           body: result,
@@ -153,11 +178,18 @@ async function sendResult(result: AgentResult) {
   );
 }
 
-// Save result to blob storage with retry
+// Save result to blob storage with retry (skipped if storage not configured)
 async function saveResultToStorage(result: AgentResult) {
+  if (!blobServiceClient) {
+    console.log(`[${config.agentId}] Blob storage not configured, skipping result save`);
+    // Print result to stdout instead for debugging
+    console.log(`[${config.agentId}] Result: ${JSON.stringify(result, null, 2)}`);
+    return;
+  }
+
   await withRetry(
     async () => {
-      const containerClient = blobServiceClient.getContainerClient('task-results');
+      const containerClient = blobServiceClient!.getContainerClient('task-results');
       const blobName = `${result.taskId}/${result.agentId}/result.json`;
       const blockBlobClient = containerClient.getBlockBlobClient(blobName);
 
@@ -187,9 +219,8 @@ async function main() {
   await init();
 
   // Check if we're running with a specific task (from Container Apps Job)
-  const taskJson = process.env.TASK_JSON;
-  if (taskJson) {
-    const task: AgentTask = JSON.parse(taskJson);
+  if (config.taskJson) {
+    const task: AgentTask = JSON.parse(config.taskJson);
     const result = await processTask(task);
     await sendResult(result);
     await saveResultToStorage(result);
@@ -198,6 +229,10 @@ async function main() {
   }
 
   // Otherwise, listen to queue (for testing/dev)
+  if (!serviceBusClient) {
+    throw new Error('Service Bus is required for queue mode but not configured');
+  }
+
   console.log(`[${config.agentId}] Listening for tasks on queue: ${config.taskQueueName}`);
 
   const receiver = serviceBusClient.createReceiver(config.taskQueueName);
@@ -219,7 +254,9 @@ async function main() {
   process.on('SIGTERM', async () => {
     console.log(`[${config.agentId}] Shutting down...`);
     await receiver.close();
-    await serviceBusClient.close();
+    if (serviceBusClient) {
+      await serviceBusClient.close();
+    }
     process.exit(0);
   });
 }

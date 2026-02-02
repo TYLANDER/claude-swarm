@@ -1,20 +1,14 @@
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { Resource } from "@opentelemetry/resources";
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { Resource } from '@opentelemetry/resources';
 import {
   SEMRESATTRS_SERVICE_NAME,
   SEMRESATTRS_SERVICE_VERSION,
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT,
-} from "@opentelemetry/semantic-conventions";
-import { AzureMonitorTraceExporter } from "@azure/monitor-opentelemetry-exporter";
-import {
-  trace,
-  Span,
-  SpanStatusCode,
-  context,
-  propagation,
-} from "@opentelemetry/api";
-import { W3CTraceContextPropagator } from "@opentelemetry/core";
+} from '@opentelemetry/semantic-conventions';
+import { AzureMonitorTraceExporter } from '@azure/monitor-opentelemetry-exporter';
+import { trace, Span, SpanStatusCode, context, propagation } from '@opentelemetry/api';
+import { W3CTraceContextPropagator } from '@opentelemetry/core';
 
 let sdk: NodeSDK | null = null;
 
@@ -37,18 +31,15 @@ export interface TracingConfig {
  */
 export function initTracing(config: TracingConfig): void {
   if (sdk) {
-    console.warn("Tracing already initialized");
+    console.warn('Tracing already initialized');
     return;
   }
 
   const connectionString =
-    config.connectionString ||
-    process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
+    config.connectionString || process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
 
   if (!connectionString) {
-    console.warn(
-      "APPLICATIONINSIGHTS_CONNECTION_STRING not set, tracing disabled",
-    );
+    console.warn('APPLICATIONINSIGHTS_CONNECTION_STRING not set, tracing disabled');
     return;
   }
 
@@ -64,25 +55,26 @@ export function initTracing(config: TracingConfig): void {
   const resource = new Resource({
     [SEMRESATTRS_SERVICE_NAME]: config.serviceName,
     [SEMRESATTRS_SERVICE_VERSION]:
-      config.serviceVersion || process.env.npm_package_version || "unknown",
+      config.serviceVersion || process.env.npm_package_version || 'unknown',
     [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]:
-      config.environment || process.env.NODE_ENV || "development",
+      config.environment || process.env.NODE_ENV || 'development',
     ...config.attributes,
   });
 
   // Initialize SDK with auto-instrumentation
   sdk = new NodeSDK({
     resource,
-    traceExporter: exporter as any, // Cast due to version mismatch in types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SDK type mismatch between @azure/monitor-opentelemetry-exporter and @opentelemetry/sdk-node
+    traceExporter: exporter as any,
     instrumentations: [
       getNodeAutoInstrumentations({
         // Disable fs instrumentation (too noisy)
-        "@opentelemetry/instrumentation-fs": { enabled: false },
+        '@opentelemetry/instrumentation-fs': { enabled: false },
         // Configure HTTP instrumentation
-        "@opentelemetry/instrumentation-http": {
+        '@opentelemetry/instrumentation-http': {
           ignoreIncomingRequestHook: (req) => {
-            const url = req.url || "";
-            return ["/health", "/ready", "/live"].some((p) => url.includes(p));
+            const url = req.url || '';
+            return ['/health', '/ready', '/live'].some((p) => url.includes(p));
           },
         },
       }),
@@ -93,11 +85,11 @@ export function initTracing(config: TracingConfig): void {
   console.log(`OpenTelemetry initialized for ${config.serviceName}`);
 
   // Graceful shutdown
-  process.on("SIGTERM", () => {
+  process.on('SIGTERM', () => {
     sdk
       ?.shutdown()
-      .then(() => console.log("OpenTelemetry shut down"))
-      .catch((err) => console.error("Error shutting down OpenTelemetry", err));
+      .then(() => console.log('OpenTelemetry shut down'))
+      .catch((err) => console.error('Error shutting down OpenTelemetry', err));
   });
 }
 
@@ -114,7 +106,7 @@ export function getTracer(name: string) {
 export function startSpan(
   tracerName: string,
   spanName: string,
-  attributes?: Record<string, string | number | boolean>,
+  attributes?: Record<string, string | number | boolean>
 ): Span {
   const tracer = getTracer(tracerName);
   const span = tracer.startSpan(spanName);
@@ -135,7 +127,7 @@ export async function withSpan<T>(
   tracerName: string,
   spanName: string,
   fn: (span: Span) => Promise<T>,
-  attributes?: Record<string, string | number | boolean>,
+  attributes?: Record<string, string | number | boolean>
 ): Promise<T> {
   const tracer = getTracer(tracerName);
   const span = tracer.startSpan(spanName);
@@ -147,10 +139,7 @@ export async function withSpan<T>(
   }
 
   try {
-    const result = await context.with(
-      trace.setSpan(context.active(), span),
-      () => fn(span),
-    );
+    const result = await context.with(trace.setSpan(context.active(), span), () => fn(span));
     span.setStatus({ code: SpanStatusCode.OK });
     return result;
   } catch (error) {
@@ -170,7 +159,7 @@ export async function withSpan<T>(
  */
 export function addSpanEvent(
   name: string,
-  attributes?: Record<string, string | number | boolean>,
+  attributes?: Record<string, string | number | boolean>
 ): void {
   const span = trace.getActiveSpan();
   if (span) {
@@ -181,9 +170,7 @@ export function addSpanEvent(
 /**
  * Set attributes on the current span
  */
-export function setSpanAttributes(
-  attributes: Record<string, string | number | boolean>,
-): void {
+export function setSpanAttributes(attributes: Record<string, string | number | boolean>): void {
   const span = trace.getActiveSpan();
   if (span) {
     for (const [key, value] of Object.entries(attributes)) {

@@ -2,22 +2,24 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy the built service
-COPY services/orchestrator/package*.json ./
-COPY services/orchestrator/dist ./dist
+RUN apk add --no-cache git
 
-# Copy shared types
-COPY packages/types/dist ./node_modules/@claude-swarm/types/dist
-COPY packages/types/package.json ./node_modules/@claude-swarm/types/
+COPY package*.json ./
+COPY packages/types/package*.json ./packages/types/
+COPY packages/shared/package*.json ./packages/shared/
+COPY services/orchestrator/package*.json ./services/orchestrator/
 
-# Install production dependencies
-RUN npm install --production --ignore-scripts
+RUN npm ci --workspace=@claude-swarm/orchestrator
 
-# Run as non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-USER nodejs
+COPY packages/types/ ./packages/types/
+COPY packages/shared/ ./packages/shared/
+COPY services/orchestrator/ ./services/orchestrator/
+
+RUN npm run build --workspace=@claude-swarm/types && npm run build --workspace=@claude-swarm/shared && npm run build --workspace=@claude-swarm/orchestrator
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+RUN adduser -D orchestrator
+USER orchestrator
+
+CMD ["node", "services/orchestrator/dist/local.js"]

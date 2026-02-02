@@ -14,7 +14,7 @@ interface WatchEvent {
 
 export async function watchCommand(): Promise<void> {
   const config = getConfig();
-  const wsUrl = config.orchestratorUrl.replace(/^http/, 'ws') + '/api/events';
+  const wsUrl = config.orchestratorUrl.replace(/^http/, 'ws') + '/ws';
 
   console.log();
   console.log(chalk.bold('Watching for updates...'));
