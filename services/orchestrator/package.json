@@ -21,6 +21,7 @@
     "@azure/storage-blob": "^12.17.0",
     "@claude-swarm/shared": "*",
     "@claude-swarm/types": "*",
+    "cors": "^2.8.6",
     "express": "^4.21.0",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
@@ -33,6 +34,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.0.0",

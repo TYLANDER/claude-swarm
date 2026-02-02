@@ -6,6 +6,9 @@ import { agentsCommand } from './commands/agents.js';
 import { budgetCommand } from './commands/budget.js';
 import { configCommand } from './commands/config.js';
 import { watchCommand } from './commands/watch.js';
+import { setupCommand } from './commands/setup.js';
+import { providerCommand } from './commands/provider.js';
+import { orchestratorCommand } from './commands/orchestrator.js';
 
 const program = new Command();
 
@@ -59,5 +62,28 @@ program
 
 // Watch for real-time updates
 program.command('watch').description('Watch real-time task and agent updates').action(watchCommand);
+
+// Setup credentials
+program
+  .command('setup')
+  .description('Configure execution provider and credentials')
+  .option('--check', 'Verify credentials are configured')
+  .option('--provider <provider>', 'Provider to configure (azure, fly, local)')
+  .option('--from-terraform <path>', 'Import configuration from Terraform directory')
+  .action(setupCommand);
+
+// Provider management
+program
+  .command('provider [provider]')
+  .description('Show or switch execution provider (azure, fly, local)')
+  .action(providerCommand);
+
+// Orchestrator lifecycle
+program
+  .command('orchestrator <action>')
+  .description('Manage the local orchestrator (start, stop, status)')
+  .option('--background', 'Run in background (for start)')
+  .option('--simulate', 'Use mock execution without cloud (for start)')
+  .action(orchestratorCommand);
 
 program.parse();
